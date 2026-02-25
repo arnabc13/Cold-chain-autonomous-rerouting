@@ -330,5 +330,3 @@ Typical simulation results:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 
-#   c o l d _ c h a i n _ V R P  
- 
