@@ -49,21 +49,12 @@ output.txt
 quality_degradation.png
 compartment_temperatures.png
 
-# Gurobi
-gurobi.log
-*.lp
-*.mps
-*.sol
+# Gurobi License
+*.lic
+gurobi.lic
 
-# Logs
-*.log
-
-# OS
-Thumbs.db
-.DS_Store
-
-# Streamlit
-.streamlit/
+# Streamlit Secrets (never commit!)
+.streamlit/secrets.toml
 
 # Testing
 .pytest_cache/
