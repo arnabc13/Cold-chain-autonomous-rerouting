@@ -1,0 +1,51 @@
+{
+  "decisions": [
+    {
+      "timestamp_min": 45.0,
+      "vehicle_id": 2,
+      "event_type": "REROUTE_APPLIED",
+      "details": {
+        "reason": "CUMULATIVE_ABUSE",
+        "batch_id": 11,
+        "option_selected": "skip_customer",
+        "option_name": "Skip customer 1 (priority 1)",
+        "customers_lost": 1,
+        "expected_quality_gain": 0.15,
+        "score": 3050.0,
+        "new_route": [
+          3,
+          12,
+          5,
+          7,
+          13
+        ],
+        "alternatives_considered": 2,
+        "current_node": 1
+      }
+    },
+    {
+      "timestamp_min": 55.0,
+      "vehicle_id": 1,
+      "event_type": "REROUTE_APPLIED",
+      "details": {
+        "reason": "TEMP_EXCURSION",
+        "batch_id": 7,
+        "option_selected": "skip_customer",
+        "option_name": "Skip customer 10 (priority 2)",
+        "customers_lost": 1,
+        "expected_quality_gain": 0.15,
+        "score": 1025.0,
+        "new_route": [
+          4,
+          11,
+          9,
+          2,
+          8,
+          13
+        ],
+        "alternatives_considered": 2,
+        "current_node": 10
+      }
+    }
+  ]
+}

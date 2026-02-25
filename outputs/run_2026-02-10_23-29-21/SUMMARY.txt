@@ -1,0 +1,39 @@
+================================================================================
+COLD CHAIN SIMULATION RESULTS
+================================================================================
+Run ID: run_2026-02-10_23-29-21
+Timestamp: 2026-02-10 23:29:21
+Status: ✅ COMPLETED
+Runtime: 5.91 seconds
+
+CONFIGURATION
+--------------------------------------------------------------------------------
+Customers: 12    Vehicles: 3    Capacity: 20 units
+Quality Threshold: 60%    Rerouting: ENABLED
+Weights: α=12.0 (distance), β=5.0 (time), γ=30.0 (risk)
+
+OPTIMIZATION RESULTS
+--------------------------------------------------------------------------------
+✅ Solution Status: 2 (2=OPTIMAL, 9=TIME_LIMIT)
+Objective Value: 17961.76
+
+SIMULATION OUTCOMES
+--------------------------------------------------------------------------------
+📦 Fulfillment Rate: 75.0% (9/12 customers)
+🔄 Reroute Events: 2
+📊 Total Events: 19
+
+VEHICLE SUMMARY
+--------------------------------------------------------------------------------
+Vehicle 0: 44 km, 45 min, 1 customers, Rerouted ❌
+Vehicle 1: 171 km, 260 min, 6 customers, Rerouted ✅
+Vehicle 2: 185 km, 235 min, 5 customers, Rerouted ✅
+
+DETAILED DATA
+--------------------------------------------------------------------------------
+📁 Metadata: metadata/config.json, instance.json, vrptw_solution.json
+📊 Time-Series: timeseries/vehicle_trajectories.csv, temperature_logs.csv, quality_logs.csv
+📋 Outcomes: outcomes/deliveries.csv, events.csv, reroute_decisions.json
+📈 Analysis: analysis/performance_metrics.json, cost_breakdown.csv
+
+================================================================================

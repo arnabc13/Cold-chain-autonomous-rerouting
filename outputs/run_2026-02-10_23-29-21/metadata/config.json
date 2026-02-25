@@ -1,0 +1,19 @@
+{
+  "run_id": "run_2026-02-10_23-29-21",
+  "timestamp": "2026-02-10T23:29:21.741651",
+  "execution_time_sec": 5.914958238601685,
+  "vrptw_weights": {
+    "alpha": 12.0,
+    "beta": 5.0,
+    "gamma": 30.0
+  },
+  "config": {
+    "dt_min": 5,
+    "horizon_min": 300,
+    "ambient_temp_c": 25.0,
+    "trigger_min_quality": 0.6,
+    "enable_auto_reroute": true,
+    "revenue_per_customer": 1000.0,
+    "spoilage_cost_per_unit": 2700.0
+  }
+}

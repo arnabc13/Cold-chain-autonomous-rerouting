@@ -1,0 +1,13 @@
+customer_id,status,product_type,demand_units
+1,DELIVERED,flowers,4
+2,DELIVERED,leafy,3
+3,DELIVERED,leafy,4
+4,DELIVERED,leafy,4
+5,DELIVERED,flowers,3
+6,DELIVERED,milk,3
+7,NOT_DELIVERED,flowers,2
+8,NOT_DELIVERED,milk,2
+9,DELIVERED,tomato,2
+10,DELIVERED,tomato,1
+11,DELIVERED,leafy,3
+12,NOT_DELIVERED,milk,4
