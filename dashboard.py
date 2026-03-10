@@ -12,6 +12,9 @@ import numpy as np
 import random
 from dataclasses import asdict
 import time
+import requests
+import folium
+from streamlit_folium import st_folium
 
 from config import SimConfig
 from synthetic_data import build_hub_to_city_instance
@@ -76,6 +79,184 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+
+@st.cache_data(show_spinner=False)
+def get_osrm_route(start_lat, start_lon, end_lat, end_lon):
+    """Fetch real road polyline from OSRM between two (lat, lon) points.
+    Cached per unique city pair so API is only called once per session.
+    Falls back to straight-line if OSRM is unreachable.
+    """
+    url = (
+        f"http://router.project-osrm.org/route/v1/driving/"
+        f"{start_lon},{start_lat};{end_lon},{end_lat}"
+        f"?overview=full&geometries=geojson"
+    )
+    try:
+        resp = requests.get(url, timeout=6)
+        data = resp.json()
+        if data.get("code") == "Ok":
+            coords = data["routes"][0]["geometry"]["coordinates"]
+            # OSRM returns [lon, lat] — we need (lat, lon)
+            return [(lat, lon) for lon, lat in coords]
+    except Exception:
+        pass
+    # Fallback to straight line
+    return [(start_lat, start_lon), (end_lat, end_lon)]
+
+
+def build_vehicle_road_timeline(inst, sim_res):
+    """Build per-vehicle list of (depart_time, arrive_time, road_poly) tuples for each segment.
+    Uses the detailed 5-min log_rows to trace exactly when a vehicle leaves a node
+    and arrives at the next.
+    """
+    locations = {}
+    for node_id, (lat, lon) in inst.coords.items():
+        locations[node_id] = (lat, lon)
+
+    timelines = {}
+
+    for k, state in sim_res.final_states.items():
+        route = state.route
+        segments = []
+        
+        # We need to find depart_t and arrive_t for every segment `(route[i], route[i+1])`
+        # We trace through log_rows for vehicle `k`.
+        v_logs = [r for r in sim_res.log_rows if r['vehicle'] == k]
+        
+        if not v_logs:
+            continue
+            
+        seg_idx = 0
+        current_depart_t = 0.0
+        
+        # A vehicle is 'traveling' if its remaining_dist_to_next < total_arc_dist, but > 0
+        # A vehicle 'arrives' when current_node switches to the next node.
+        
+        for r_idx in range(len(v_logs) - 1):
+            if seg_idx >= len(route) - 1:
+                break
+                
+            curr_log = v_logs[r_idx]
+            next_log = v_logs[r_idx + 1]
+            
+            from_node = route[seg_idx]
+            to_node = route[seg_idx + 1]
+            
+            # Did the vehicle complete the segment between curr_log and next_log?
+            # It finishes a segment when its 'current_node' updates to the 'to_node'
+            if curr_log['current_node'] == from_node and next_log['current_node'] == to_node:
+                arrive_t = next_log['t_min']
+                
+                if from_node in locations and to_node in locations:
+                    f_lat, f_lon = locations[from_node]
+                    t_lat, t_lon = locations[to_node]
+                    road_poly = get_osrm_route(f_lat, f_lon, t_lat, t_lon)
+                    segments.append((current_depart_t, arrive_t, f_lat, f_lon, t_lat, t_lon, road_poly))
+                
+                # The next segment starts departing after the service time at `to_node`
+                service_min = inst.service.get(to_node, 0.0) if to_node in inst.customers else 0.0
+                current_depart_t = arrive_t + service_min
+                seg_idx += 1
+                
+        # If it finished the last segment right at the end of the logs
+        if seg_idx < len(route) - 1:
+            from_node = route[seg_idx]
+            to_node = route[seg_idx + 1]
+            if from_node in locations and to_node in locations:
+                f_lat, f_lon = locations[from_node]
+                t_lat, t_lon = locations[to_node]
+                road_poly = get_osrm_route(f_lat, f_lon, t_lat, t_lon)
+                # extrapolate arrival based on clock_min
+                arrive_t = state.clock_min
+                segments.append((current_depart_t, arrive_t, f_lat, f_lon, t_lat, t_lon, road_poly))
+
+        timelines[k] = segments
+
+    return timelines
+
+
+def create_live_folium_map(inst, sim_res, current_sim_time):
+    """Render a Folium map with vehicles following real roads,
+    positioned accurately at current_sim_time relative to simulation."""
+    locations = {}
+    for node_id, (lat, lon) in inst.coords.items():
+        locations[node_id] = (lat, lon)
+
+    city_names = {}
+    city_names[inst.start] = REAL_GEOGRAPHY["hub"]["name"]
+    city_names[inst.end] = REAL_GEOGRAPHY["hub"]["name"]
+    for c in REAL_GEOGRAPHY["customers"]:
+        city_names[c["id"]] = c["name"]
+
+    center_lat = REAL_GEOGRAPHY["hub"]["latitude"]
+    center_lon = REAL_GEOGRAPHY["hub"]["longitude"]
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=9,
+                   tiles="OpenStreetMap")
+
+    # ── Customer markers with permanent labels ────────────────────────────────
+    for c in inst.customers:
+        lat, lon = locations[c]
+        cname = city_names.get(c, f'C{c}')
+        folium.Marker(
+            [lat, lon],
+            tooltip=cname,
+            popup=cname,
+            icon=folium.Icon(color='blue', icon='info-sign')
+        ).add_to(m)
+
+    # ── Depot marker ─────────────────────────────────────────────────────────
+    hub_lat, hub_lon = locations[inst.start]
+    hub_name = city_names.get(inst.start, 'Hub')
+    folium.Marker(
+        [hub_lat, hub_lon],
+        tooltip=f"Hub: {hub_name}",
+        popup=f"Hub: {hub_name}",
+        icon=folium.Icon(color='red', icon='star')
+    ).add_to(m)
+
+    # ── Per-vehicle road routes + animated vehicle position ───────────────────
+    veh_colors = ['blue', 'orange', 'green', 'purple', 'red', 'cadetblue']
+    timelines = build_vehicle_road_timeline(inst, sim_res)
+
+    for k, segments in timelines.items():
+        color = veh_colors[k % len(veh_colors)]
+        vehicle_lat = vehicle_lon = None
+
+        for depart_t, arrive_t, f_lat, f_lon, t_lat, t_lon, road_poly in segments:
+            # Draw road segment
+            folium.PolyLine(
+                road_poly,
+                color=color,
+                weight=4,
+                opacity=0.8,
+                tooltip=f'Vehicle {k} Route'
+            ).add_to(m)
+
+            # Is the vehicle currently in this segment?
+            if depart_t <= current_sim_time <= arrive_t:
+                span = arrive_t - depart_t
+                frac = (current_sim_time - depart_t) / span if span > 0 else 0.0
+                poly_idx = int(frac * (len(road_poly) - 1))
+                poly_idx = max(0, min(poly_idx, len(road_poly) - 1))
+                vehicle_lat, vehicle_lon = road_poly[poly_idx]
+
+        # If simulation hasn't started yet, show at depot
+        if vehicle_lat is None and current_sim_time == 0:
+            vehicle_lat, vehicle_lon = hub_lat, hub_lon
+        # If finished, show at last waypoint of last segment
+        elif vehicle_lat is None and segments:
+            vehicle_lat, vehicle_lon = segments[-1][6][-1]
+
+        if vehicle_lat is not None:
+            folium.Marker(
+                [vehicle_lat, vehicle_lon],
+                tooltip=f'Vehicle {k} (Time: {current_sim_time:.1f}m)',
+                popup=f'Vehicle {k}',
+                icon=folium.Icon(color=color, icon='truck', prefix='fa')
+            ).add_to(m)
+
+    return m
 
 
 def create_route_animation(inst, sim_res):
@@ -714,6 +895,9 @@ def main():
         # Create 2 columns for better layout
         col1, col2 = st.columns(2)
         
+        # Use a fixed seed for initial UI values so they don't jump around on refresh
+        demand_rng = random.Random(42)
+        
         for idx, customer in enumerate(REAL_GEOGRAPHY["customers"]):
             city_name = customer["name"]
             customer_id = customer["id"]
@@ -724,7 +908,7 @@ def main():
                     f"{city_name}",
                     min_value=1,
                     max_value=10,
-                    value=random.randint(1, 4),
+                    value=demand_rng.randint(1, 4),
                     step=1,
                     key=f"demand_{customer_id}"
                 )
@@ -864,11 +1048,57 @@ def main():
         
         st.markdown("---")
         
-        # Route Animation Section
+        # ── Live Route Map Section ─────────────────────────────────────────────
         st.markdown("### 🗺️ Live Route Visualization")
-        route_fig = create_route_animation(inst, sim_res)
-        st.plotly_chart(route_fig, use_container_width=True)
+
+        max_sim_time = max(s.clock_min for s in sim_res.final_states.values()) if sim_res.final_states else 0
+
+        speed_multiplier = st.radio(
+            "▶ Playback Controls", 
+            options=[0, 1, 5, 10, 30, 60], 
+            format_func=lambda x: "⏸ Paused" if x == 0 else ("1x (Real Time)" if x == 1 else f"{x}x Fast Forward"),
+            horizontal=True
+        )
+
+        current_real_time = time.time()
         
+        # Initialize playback state
+        if 'last_real_time' not in st.session_state:
+            st.session_state['last_real_time'] = current_real_time
+        if 'current_sim_time' not in st.session_state:
+            st.session_state['current_sim_time'] = 0.0
+
+        # Calculate time delta since last frame
+        delta_real_seconds = current_real_time - st.session_state['last_real_time']
+        st.session_state['last_real_time'] = current_real_time
+
+        # If playing, auto-advance the internal time
+        if speed_multiplier > 0:
+            sim_minutes_delta = (delta_real_seconds / 60.0) * speed_multiplier
+            st.session_state['current_sim_time'] = min(st.session_state['current_sim_time'] + sim_minutes_delta, max_sim_time)
+
+        # Allow user to drag the slider manually
+        current_sim_time = st.slider(
+            "⏱ Simulation Time (minutes)",
+            min_value=0.0,
+            max_value=float(max_sim_time),
+            value=float(st.session_state['current_sim_time']),
+            step=1.0,
+            format="%.1f min"
+        )
+        
+        # Sync the session state with the slider's value
+        # If the user drags it, it will overwrite the auto-advanced time
+        st.session_state['current_sim_time'] = current_sim_time
+
+        live_map = create_live_folium_map(inst, sim_res, current_sim_time)
+        st_folium(live_map, use_container_width=True, height=600, returned_objects=[])
+
+        # Always trigger rerun if we are actively playing and haven't finished
+        if speed_multiplier > 0 and current_sim_time < max_sim_time:
+            time.sleep(1)
+            st.rerun()
+
         st.markdown("---")
 
         # Reroute Timeline
