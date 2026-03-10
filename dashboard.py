@@ -467,7 +467,14 @@ def main():
     
     # Sidebar configuration
     with st.sidebar:
-        st.image("https://via.placeholder.com/300x100/667eea/ffffff?text=Cold+Chain+AI", use_container_width=True)
+        st.markdown("""
+        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                    padding: 1rem; border-radius: 10px; text-align: center;
+                    color: white; font-size: 1.2rem; font-weight: bold;
+                    letter-spacing: 1px; margin-bottom: 0.5rem;">
+            🚚 Cold Chain AI
+        </div>
+        """, unsafe_allow_html=True)
         st.markdown("### ⚙️ Simulation Configuration")
         
         # Fixed number of customers (12 real cities in Medinipur)
