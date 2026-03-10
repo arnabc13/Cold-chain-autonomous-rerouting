@@ -895,9 +895,6 @@ def main():
         # Create 2 columns for better layout
         col1, col2 = st.columns(2)
         
-        # Use a fixed seed for initial UI values so they don't jump around on refresh
-        demand_rng = random.Random(42)
-        
         for idx, customer in enumerate(REAL_GEOGRAPHY["customers"]):
             city_name = customer["name"]
             customer_id = customer["id"]
@@ -908,7 +905,7 @@ def main():
                     f"{city_name}",
                     min_value=1,
                     max_value=10,
-                    value=demand_rng.randint(1, 4),
+                    value=random.randint(1, 4),
                     step=1,
                     key=f"demand_{customer_id}"
                 )
