@@ -47,8 +47,10 @@ def generate_reroute_options(
     """
     options = []
     
-    # Get remaining route
-    remaining_route = vehicle_state.route[vehicle_state.route_index:]
+    # Get remaining route — start from route_index+1 to EXCLUDE the current node.
+    # The trigger fires after service at the current node, so current_node has
+    # already been served. Only truly future (unvisited) nodes are skip candidates.
+    remaining_route = vehicle_state.route[vehicle_state.route_index + 1:]
     remaining_customers = [n for n in remaining_route if n in inst.customers]
     
     if not remaining_customers:
@@ -221,28 +223,29 @@ def apply_reroute(
 ) -> None:
     """
     Apply a new route to the vehicle state.
-    
+
+    new_route contains ONLY future nodes (route_index+1 onward), without the
+    skipped customer. We prepend the already-traveled portion to form the full route.
+
     Updates:
     - vehicle_state.route
     - vehicle_state.route_index
     - vehicle_state.next_node
     """
-    # IMPORTANT: Preserve the path already traveled (depot + visited nodes)
-    # The route should show the COMPLETE journey: depot → visited → current → future → depot
-    
-    # Get the path already traveled (from start depot to current node)
+    # Everything up to and including current node (route_index) is already traveled
     traveled_path = vehicle_state.route[:vehicle_state.route_index + 1]
-    
-    # Build remaining route (excluding current node to avoid duplicate)
-    remaining_route = [n for n in new_route if n != current_node]
-    
-    # Combine: traveled_path + remaining_route
-    full_new_route = traveled_path + remaining_route
-    
+
+    # Safety: strip current_node from new_route in case it appears there
+    # (would cause next_node == current_node → KeyError in _arc_distance)
+    new_route = [n for n in new_route if n != current_node]
+
+    # new_route = future nodes only (skipped customer absent, current_node absent)
+    full_new_route = traveled_path + new_route
+
     # Update vehicle state
     vehicle_state.route = full_new_route
     vehicle_state.route_index = len(traveled_path) - 1  # Point to current node
-    
+
     # Set next node
     if len(full_new_route) > vehicle_state.route_index + 1:
         vehicle_state.next_node = full_new_route[vehicle_state.route_index + 1]

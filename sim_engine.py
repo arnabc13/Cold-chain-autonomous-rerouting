@@ -314,10 +314,17 @@ def simulate_routes(
                             apply_reroute(st, best_option.new_route, st.current_node)
                             
                             # Update distance to next node after reroute
-                            if st.next_node is not None:
+                            # Guard: skip if next_node == current_node (self-loop) to avoid KeyError
+                            if st.next_node is not None and st.next_node != st.current_node:
                                 st.remaining_dist_to_next = _arc_distance(
                                     inst, st.current_node, st.next_node
                                 )
+                            elif st.next_node == st.current_node:
+                                # Advance one more step to a truly different node
+                                _idx = st.route_index + 2
+                                st.next_node = st.route[_idx] if _idx < len(st.route) else None
+                                if st.next_node is not None and st.next_node != st.current_node:
+                                    st.remaining_dist_to_next = _arc_distance(inst, st.current_node, st.next_node)
                             
                             # Mark as rerouted
                             st.reroute_triggered = True

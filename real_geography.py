@@ -94,12 +94,5 @@ REAL_GEOGRAPHY = {
             "latitude": 21.9005,
             "longitude": 87.5381,
         },
-        {
-            "id": 13,
-            "name": "Garbeta",
-            "type": "Agricultural Town",
-            "latitude": 22.6000,  # Approximate (near Daspur region)
-            "longitude": 87.4500,
-        },
     ]
 }

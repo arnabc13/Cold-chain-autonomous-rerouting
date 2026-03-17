@@ -1,0 +1,59 @@
+name: CI - Test & Auto-Rollback
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests & Auto-Rollback on Failure
+
+    steps:
+      # Step 1: Checkout the pushed code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # Need previous commit for rollback
+
+      # Step 2: Set up Python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # Step 3: Install dependencies (without gurobipy — not needed for import tests)
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install streamlit plotly pandas numpy matplotlib pytest
+
+      # Step 4: Run tests
+      - name: Run smoke tests
+        id: run_tests
+        run: |
+          python -m pytest tests/ -v --tb=short
+        continue-on-error: true
+
+      # Step 5: If tests PASSED — report success
+      - name: ✅ Tests passed — Streamlit Cloud will deploy
+        if: steps.run_tests.outcome == 'success'
+        run: echo "All tests passed. Streamlit Cloud will auto-deploy this version."
+
+      # Step 6: If tests FAILED — auto-revert to previous commit
+      - name: ❌ Tests failed — reverting to previous working version
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          echo "Tests failed! Reverting to last known good version..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git revert HEAD --no-edit
+          git push origin main
+          echo "Revert pushed. Streamlit Cloud will redeploy last working version."
+
+      # Step 7: Fail the workflow so GitHub shows a red X on the bad commit
+      - name: Mark workflow as failed if tests failed
+        if: steps.run_tests.outcome == 'failure'
+        run: exit 1

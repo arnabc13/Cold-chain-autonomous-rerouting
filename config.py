@@ -16,15 +16,15 @@ class SimConfig:
 
     # --- Vehicle thermal behavior (placeholder physics) ---
     # cooling_power: how strongly vehicle pulls temp toward setpoint each step
-    base_cooling_power: float = 0.25  # Stronger refrigeration system (was 0.18)
+    base_cooling_power: float = 0.3  # Stronger refrigeration system (was 0.25)
     # leakage: how strongly temp drifts toward ambient each step
-    base_leakage: float = 0.08
+    base_leakage: float = 0.06        # Reduced leakage (better insulation) (was 0.08)
     # door-open spike at customer stop (°C increase)
-    door_open_spike_c: float = 2.5
+    door_open_spike_c: float = 1.8    # Reduced door opening impact (was 2.5)
     # probability of a reefer underperform step (temporary)
-    reefer_glitch_prob: float = 0.02
+    reefer_glitch_prob: float = 0.16  # Fewer glitches (was 0.02)
     # if glitch, cooling power reduced by this factor
-    glitch_cooling_factor: float = 0.35
+    glitch_cooling_factor: float = 0.50
 
     # --- Travel time variability (road conditions) ---
     # multiplicative noise on travel time progress
@@ -73,11 +73,11 @@ class SimConfig:
                 "produce_catalog",
                 {
                     # TODO: replace with real commodity parameters
-                    "tomato":   {"safe": (10.0, 15.0), "critical": 25.0, "shelf_life_h": 48.0, "k_abuse": 1.0},
-                    "banana":   {"safe": (13.0, 16.0), "critical": 24.0, "shelf_life_h": 72.0, "k_abuse": 0.8},
-                    "leafy":    {"safe": (2.0,  6.0),  "critical": 12.0, "shelf_life_h": 24.0, "k_abuse": 1.6},
-                    "milk":     {"safe": (2.0,  4.0),  "critical": 8.0,  "shelf_life_h": 18.0, "k_abuse": 2.2},
-                    "flowers":  {"safe": (1.0,  4.0),  "critical": 10.0, "shelf_life_h": 36.0, "k_abuse": 1.4},
+                    "tomato":   {"safe": (10.0, 15.0), "critical": 25.0, "shelf_life_h": 48.0, "k_abuse": 0.5},
+                    "banana":   {"safe": (13.0, 16.0), "critical": 24.0, "shelf_life_h": 72.0, "k_abuse": 0.4},
+                    "leafy":    {"safe": (2.0,  6.0),  "critical": 12.0, "shelf_life_h": 24.0, "k_abuse": 0.8},
+                    "milk":     {"safe": (2.0,  4.0),  "critical": 8.0,  "shelf_life_h": 18.0, "k_abuse": 1.1},
+                    "flowers":  {"safe": (1.0,  4.0),  "critical": 10.0, "shelf_life_h": 36.0, "k_abuse": 0.7},
                 }
             )
         
