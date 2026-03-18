@@ -1,0 +1,8 @@
+{
+  "run_id": "run_2026-03-17_22-25-09",
+  "total_customers": 12,
+  "fulfilled_customers": 9,
+  "fulfillment_rate": 0.75,
+  "reroute_events": 2,
+  "total_events": 19
+}
